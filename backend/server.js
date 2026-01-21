@@ -19,6 +19,7 @@ app.use(express.json({ limit: '10mb' }));
 const allowedOrigins = [
   'http://localhost:3000',
   'https://educonnect-platform-frontend.onrender.com',
+  'https://visual-new-frontend.onrender.com',
 ];
 
 app.use(
