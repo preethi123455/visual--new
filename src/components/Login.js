@@ -1,8 +1,6 @@
 import React, { useRef, useState } from "react";
 import Webcam from "react-webcam";
 import axios from "axios";
-import "./Login.css";
-
 
 const Login = () => {
   const webcamRef = useRef(null);
@@ -28,18 +26,12 @@ const Login = () => {
       const res = await axios.post("https://visual-math-oscg.onrender.com/login", {
         email,
         image: imageSrc,
-      },
-      {
-    headers: {
-      "Content-Type": "application/json",
-    },
-  }
-    );
+      });
   
       if (res.data.success) {
         localStorage.setItem("userEmail", email); // Store email in localStorage
         setMessage("✅ Login successful!");
-        window.location.href = "/sidebar"; // Redirect to home page
+        window.location.href = "/hom"; // Redirect to home page
       } else {
         setMessage("❌ Login failed. Face does not match.");
       }
@@ -50,45 +42,21 @@ const Login = () => {
   };
   
   return (
-  <div className="login-container">
-    <div className="login-card">
-      <h2>🔐 Face Login</h2>
+    <div>
+      <h2>Login</h2>
+      <Webcam ref={webcamRef} screenshotFormat="image/jpeg" />
+      {capturedImage && <img src={capturedImage} alt="Captured face" width={100} />}
+      
+      <input type="email" placeholder="Enter Email" onChange={(e) => setEmail(e.target.value)} required />
 
-      <div className="webcam-box">
-        <Webcam ref={webcamRef} screenshotFormat="image/jpeg" />
-      </div>
+      <button onClick={captureAndLogin}>Login</button>
 
-      {capturedImage && (
-        <img
-          src={capturedImage}
-          alt="Captured face"
-          width={100}
-          className="captured-img"
-        />
-      )}
-
-      <input
-        type="email"
-        placeholder="Enter Email"
-        onChange={(e) => setEmail(e.target.value)}
-      />
-
-      <button className="login-btn" onClick={captureAndLogin}>
-        📸 Capture & Login
-      </button>
-
-      {message && <p className="message">{message}</p>}
-
-      <button
-        className="signup-link"
-        onClick={() => (window.location.href = "/signup")}
-      >
-        Don’t have an account? Sign up
-      </button>
+      <p>{message}</p>
+      <button onClick={() => window.location.href = "/signup"}>
+  Go to Signup
+</button>
     </div>
-  </div>
-);
-
+  );
 };
 
 export default Login;

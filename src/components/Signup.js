@@ -1,8 +1,6 @@
 import React, { useRef, useState } from "react";
 import Webcam from "react-webcam";
 import axios from "axios";
-import "./Signup.css";
-
 
 const Signup = () => {
   const webcamRef = useRef(null);
@@ -32,12 +30,7 @@ const Signup = () => {
         age,
         email,
         image: imageSrc,
-      },
-     {
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+      });
 
       setMessage(res.data.message);
 
@@ -52,58 +45,24 @@ const Signup = () => {
     }
   };
 
-return (
-  <div className="signup-container">
-    <div className="signup-card">
-      <h2>📝 Face Signup</h2>
+  return (
+    <div>
+      <h2>Signup</h2>
+      <Webcam ref={webcamRef} screenshotFormat="image/jpeg" />
+      {capturedImage && <img src={capturedImage} alt="Captured face" width={100} />}
 
-      <div className="webcam-box">
-        <Webcam ref={webcamRef} screenshotFormat="image/jpeg" />
-      </div>
+      <input type="text" placeholder="Enter Name" onChange={(e) => setName(e.target.value)} required />
+      <input type="number" placeholder="Enter Age" onChange={(e) => setAge(e.target.value)} required />
+      <input type="email" placeholder="Enter Email" onChange={(e) => setEmail(e.target.value)} required />
 
-      {capturedImage && (
-        <img
-          src={capturedImage}
-          alt="Captured face"
-          width={100}
-          className="captured-img"
-        />
-      )}
+      <button onClick={captureAndSignup}>Signup</button>
 
-      <input
-        type="text"
-        placeholder="Enter Name"
-        onChange={(e) => setName(e.target.value)}
-      />
-
-      <input
-        type="number"
-        placeholder="Enter Age"
-        onChange={(e) => setAge(e.target.value)}
-      />
-
-      <input
-        type="email"
-        placeholder="Enter Email"
-        onChange={(e) => setEmail(e.target.value)}
-      />
-
-      <button className="signup-btn" onClick={captureAndSignup}>
-        📸 Capture & Signup
-      </button>
-
-      {message && <p className="message">{message}</p>}
-
-      <button
-        className="login-link"
-        onClick={() => (window.location.href = "/login")}
-      >
-        Already have an account? Login
-      </button>
+      <p>{message}</p>
+      <button onClick={() => window.location.href = "/login"}>
+  Go to Login
+</button>
     </div>
-  </div>
-);
-
+  );
 };
 
 export default Signup;
