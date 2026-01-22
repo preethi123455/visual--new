@@ -12,29 +12,28 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
 const app = express();
 
 /* =======================
-   🔹 BODY PARSER (REQUIRED)
+   🔹 BODY PARSER
 ======================= */
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 /* =======================
-   🔹 MANUAL CORS (RENDER SAFE)
+   🔹 HARD CORS FIX (RENDER SAFE)
 ======================= */
-const allowedOrigin = 'https://visual-new-frontend.onrender.com';
-
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  res.setHeader(
+    'Access-Control-Allow-Origin',
+    'https://visual-new-frontend.onrender.com'
+  );
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+    'Content-Type, Authorization'
   );
   res.setHeader(
     'Access-Control-Allow-Methods',
     'GET, POST, PUT, DELETE, OPTIONS'
   );
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  // 🔥 VERY IMPORTANT
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
@@ -43,14 +42,14 @@ app.use((req, res, next) => {
 });
 
 /* =======================
-   🔹 HEALTH CHECK (MANDATORY)
+   🔹 HEALTH CHECK
 ======================= */
 app.get('/', (req, res) => {
-  res.send('✅ Backend is alive');
+  res.send('Backend is alive');
 });
 
 /* =======================
-   🔹 MONGODB CONNECTION
+   🔹 MONGODB
 ======================= */
 const MONGO_URI =
   process.env.MONGO_URI ||
@@ -58,8 +57,8 @@ const MONGO_URI =
 
 mongoose
   .connect(MONGO_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
-  .catch((err) => console.error('❌ MongoDB Error:', err.message));
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.error('MongoDB error:', err.message));
 
 /* =======================
    🔹 USER SCHEMA
@@ -81,12 +80,10 @@ async function loadModels() {
   await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath);
   await faceapi.nets.faceRecognitionNet.loadFromDisk(modelsPath);
   await faceapi.nets.faceLandmark68Net.loadFromDisk(modelsPath);
-  console.log('✅ Face API models loaded');
+  console.log('Face models loaded');
 }
 
-loadModels().catch((err) =>
-  console.error('❌ Face model load failed:', err.message)
-);
+loadModels().catch(console.error);
 
 /* =======================
    🔹 FACE DESCRIPTOR
@@ -120,17 +117,16 @@ app.post('/signup', async (req, res) => {
 
     const faceDescriptor = await getFaceDescriptor(image);
 
-    const user = new User({
+    await User.create({
       name,
       age,
       email,
       faceDescriptors: [faceDescriptor],
     });
 
-    await user.save();
     res.status(201).json({ message: 'Signup successful' });
   } catch (err) {
-    console.error('Signup Error:', err.message);
+    console.error(err.message);
     res.status(500).json({ message: 'Signup failed' });
   }
 });
@@ -149,12 +145,12 @@ app.post('/login', async (req, res) => {
 
     const loginDescriptor = await getFaceDescriptor(image);
 
-    const labeledDescriptor = new faceapi.LabeledFaceDescriptors(
+    const labeled = new faceapi.LabeledFaceDescriptors(
       user.email,
       user.faceDescriptors.map((d) => new Float32Array(d))
     );
 
-    const matcher = new faceapi.FaceMatcher(labeledDescriptor, 0.4);
+    const matcher = new faceapi.FaceMatcher(labeled, 0.4);
     const match = matcher.findBestMatch(
       new Float32Array(loginDescriptor)
     );
@@ -165,7 +161,7 @@ app.post('/login', async (req, res) => {
       res.status(400).json({ success: false, message: 'Face mismatch' });
     }
   } catch (err) {
-    console.error('Login Error:', err.message);
+    console.error(err.message);
     res.status(500).json({ message: 'Login failed' });
   }
 });
@@ -180,5 +176,5 @@ app.use('/api/cart', cartRoutes);
 ======================= */
 const PORT = process.env.PORT || 5002;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
