@@ -12,29 +12,35 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
 
 const app = express();
 
-// 🔹 Body parser
+/* =======================
+   🔹 BODY PARSER
+======================= */
 app.use(express.json({ limit: '10mb' }));
 
-// 🔹 CORS - allow local and deployed frontend
+/* =======================
+   🔹 CORS (RECTIFIED)
+======================= */
 const allowedOrigins = [
   'http://localhost:3000',
+  'https://educonnect-platform-frontend.onrender.com',
   'https://visual-new-frontend.onrender.com',
 ];
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // Allow Postman / server requests
-      if (allowedOrigins.indexOf(origin) === -1) {
-        return callback(new Error('❌ CORS policy blocked this origin'), false);
-      }
-      return callback(null, true);
-    },
+    origin: allowedOrigins, // ✅ NO custom function
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   })
 );
 
-// 🔹 MongoDB connection (Atlas or fallback to localhost)
+// ✅ REQUIRED for preflight
+app.options('*', cors());
+
+/* =======================
+   🔹 MONGODB CONNECTION
+======================= */
 const MONGO_URI =
   process.env.MONGO_URI ||
   'mongodb+srv://preethi:Preethi1234@cluster0.umdwxhv.mongodb.net/faceAuthDB';
@@ -47,7 +53,9 @@ mongoose
   .then(() => console.log('✅ MongoDB Connected'))
   .catch((error) => console.error('❌ MongoDB Connection Error:', error));
 
-// 🔹 User schema (Face Authentication)
+/* =======================
+   🔹 USER SCHEMA
+======================= */
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   age: { type: Number, required: true },
@@ -57,21 +65,25 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// 🔹 Load Face Recognition Models
+/* =======================
+   🔹 LOAD FACE API MODELS
+======================= */
 async function loadModels() {
   try {
-    const modelsPath = path.join(__dirname, 'models'); // Ensure 'models' folder exists
+    const modelsPath = path.join(__dirname, 'models');
     await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath);
     await faceapi.nets.faceRecognitionNet.loadFromDisk(modelsPath);
     await faceapi.nets.faceLandmark68Net.loadFromDisk(modelsPath);
     console.log('✅ Face API models loaded');
   } catch (err) {
-    console.error('❌ Error loading FaceAPI models:', err.message);
+    console.error('❌ Face API Model Error:', err.message);
   }
 }
 loadModels();
 
-// 🔹 Get Face Descriptor from Base64 Image
+/* =======================
+   🔹 FACE DESCRIPTOR
+======================= */
 async function getFaceDescriptor(imageBase64) {
   try {
     const img = await canvas.loadImage(imageBase64);
@@ -80,16 +92,18 @@ async function getFaceDescriptor(imageBase64) {
       .withFaceLandmarks()
       .withFaceDescriptor();
 
-    if (!detection) throw new Error('❌ No face detected');
+    if (!detection) throw new Error('No face detected');
 
     return Array.from(detection.descriptor);
   } catch (error) {
     console.error('❌ Face Detection Error:', error.message);
-    throw new Error('Face detection failed. Try again.');
+    throw new Error('Face detection failed');
   }
 }
 
-// 🔹 Signup Route
+/* =======================
+   🔹 SIGNUP ROUTE
+======================= */
 app.post('/signup', async (req, res) => {
   try {
     const { name, age, email, image } = req.body;
@@ -116,17 +130,19 @@ app.post('/signup', async (req, res) => {
     res.status(201).json({ message: '✅ Signup successful' });
   } catch (error) {
     console.error('❌ Signup Error:', error.message);
-    res.status(500).json({ message: '❌ Signup failed. Try again.' });
+    res.status(500).json({ message: '❌ Signup failed' });
   }
 });
 
-// 🔹 Login Route
+/* =======================
+   🔹 LOGIN ROUTE
+======================= */
 app.post('/login', async (req, res) => {
   try {
     const { email, image } = req.body;
 
     if (!email || !image) {
-      return res.status(400).json({ message: '❌ Email and image are required' });
+      return res.status(400).json({ message: '❌ Email and image required' });
     }
 
     const user = await User.findOne({ email });
@@ -134,32 +150,38 @@ app.post('/login', async (req, res) => {
       return res.status(400).json({ message: '❌ User not found' });
     }
 
-    const loginFaceDescriptor = await getFaceDescriptor(image);
+    const loginDescriptor = await getFaceDescriptor(image);
 
-    const labeledDescriptors = new faceapi.LabeledFaceDescriptors(
+    const labeledDescriptor = new faceapi.LabeledFaceDescriptors(
       user.email,
       user.faceDescriptors.map((desc) => new Float32Array(desc))
     );
 
-    const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.4);
-    const bestMatch = faceMatcher.findBestMatch(new Float32Array(loginFaceDescriptor));
-
-    console.log('🔍 Best Match:', bestMatch.toString());
+    const faceMatcher = new faceapi.FaceMatcher(labeledDescriptor, 0.4);
+    const bestMatch = faceMatcher.findBestMatch(
+      new Float32Array(loginDescriptor)
+    );
 
     if (bestMatch.label === user.email) {
       res.status(200).json({ success: true, message: '✅ Login successful' });
     } else {
-      res.status(400).json({ success: false, message: '❌ Face does not match' });
+      res.status(400).json({ success: false, message: '❌ Face mismatch' });
     }
   } catch (error) {
     console.error('❌ Login Error:', error.message);
-    res.status(500).json({ message: '❌ Login failed. Try again.' });
+    res.status(500).json({ message: '❌ Login failed' });
   }
 });
 
-// 🔹 Cart Routes
+/* =======================
+   🔹 CART ROUTES
+======================= */
 app.use('/api/cart', cartRoutes);
 
-// 🔹 Start Server
+/* =======================
+   🔹 START SERVER
+======================= */
 const PORT = process.env.PORT || 5002;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
