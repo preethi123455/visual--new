@@ -1,288 +1,180 @@
-// =======================
-// IMPORTS
-// =======================
-const express = require("express");
-const cors = require("cors");
-const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
-const fs = require("fs");
-const path = require("path");
-const multer = require("multer");
-const pdfParse = require("pdf-parse");
-const Groq = require("groq-sdk"); // ✅ correct import
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const faceapi = require('face-api.js');
+const canvas = require('canvas');
+const path = require('path');
+const cartRoutes = require('./routes/cartRoutes');
 
-require("dotenv").config();
+const { Canvas, Image, ImageData } = canvas;
+faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
 
-// =======================
-// APP + PORT
-// =======================
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-// =======================
-// MIDDLEWARE
-// =======================
-app.use(express.json());
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "https://visual-frontend-bsfk.onrender.com",
-      "https://visual-new-frontend.onrender.com/",
-    ],
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+/* =======================
+   🔹 BODY PARSER
+======================= */
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-// =======================
-// GROQ API INIT
-// =======================
-if (!process.env.GROQ_API_KEY) {
-  console.warn("⚠️ GROQ_API_KEY is not set in environment variables.");
-}
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+/* =======================
+   🔹 HARD CORS FIX (RENDER SAFE)
+======================= */
+app.use((req, res, next) => {
+  res.setHeader(
+    'Access-Control-Allow-Origin',
+    'https://visual-new-frontend.onrender.com'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET, POST, PUT, DELETE, OPTIONS'
+  );
 
-// =======================
-// MONGO CONNECTION
-// =======================
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+/* =======================
+   🔹 HEALTH CHECK
+======================= */
+app.get('/', (req, res) => {
+  res.send('Backend is alive');
+});
+
+/* =======================
+   🔹 MONGODB
+======================= */
+const MONGO_URI =
+  process.env.MONGO_URI ||
+  'mongodb+srv://preethi:Preethi1234@cluster0.umdwxhv.mongodb.net/faceAuthDB';
+
 mongoose
-  .connect(
-    "mongodb+srv://preethi:Preethi123@cluster0.5zvyv1w.mongodb.net/visualmath"
-  )
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB error:", err));
+  .connect(MONGO_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.error('MongoDB error:', err.message));
 
-// =======================
-// USER SCHEMA
-// =======================
+/* =======================
+   🔹 USER SCHEMA
+======================= */
 const userSchema = new mongoose.Schema({
   name: String,
+  age: Number,
   email: { type: String, unique: true },
-  phone: String,
-  password: String,
+  faceDescriptors: [[Number]],
 });
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model('User', userSchema);
 
-// =======================
-// FILE SCHEMA
-// =======================
-const fileSchema = new mongoose.Schema({
-  filename: String,
-  originalName: String,
-  uploadDate: { type: Date, default: Date.now },
-});
-const File = mongoose.model("File", fileSchema);
+/* =======================
+   🔹 LOAD FACE MODELS
+======================= */
+async function loadModels() {
+  const modelsPath = path.join(__dirname, 'models');
+  await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath);
+  await faceapi.nets.faceRecognitionNet.loadFromDisk(modelsPath);
+  await faceapi.nets.faceLandmark68Net.loadFromDisk(modelsPath);
+  console.log('Face models loaded');
+}
 
-// =======================
-// MULTER UPLOAD CONFIG
-// =======================
-const uploadDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+loadModels().catch(console.error);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) =>
-    cb(
-      null,
-      Date.now() +
-        "-" +
-        Math.round(Math.random() * 1e9) +
-        "-" +
-        file.originalname
-    ),
-});
-const upload = multer({ storage });
+/* =======================
+   🔹 FACE DESCRIPTOR
+======================= */
+async function getFaceDescriptor(imageBase64) {
+  const img = await canvas.loadImage(imageBase64);
+  const detection = await faceapi
+    .detectSingleFace(img)
+    .withFaceLandmarks()
+    .withFaceDescriptor();
 
-// =======================
-// ROUTES
-// =======================
-app.get("/", (req, res) => {
-  res.send("Backend is running ✅");
-});
+  if (!detection) throw new Error('No face detected');
+  return Array.from(detection.descriptor);
+}
 
-// -----------------------
-// SIGNUP
-// -----------------------
-app.post("/signup", async (req, res) => {
+/* =======================
+   🔹 SIGNUP
+======================= */
+app.post('/signup', async (req, res) => {
   try {
-    const { name, email, phone, password } = req.body;
+    const { name, age, email, image } = req.body;
 
-    if (!name || !email || !phone || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+    if (!name || !age || !email || !image) {
+      return res.status(400).json({ message: 'All fields required' });
     }
 
-    const existing = await User.findOne({ email });
-    if (existing) {
-      return res.status(400).json({ message: "User already exists!" });
+    const exists = await User.findOne({ email });
+    if (exists) {
+      return res.status(400).json({ message: 'User already exists' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const faceDescriptor = await getFaceDescriptor(image);
 
-    const user = new User({ name, email, phone, password: hashedPassword });
-    await user.save();
+    await User.create({
+      name,
+      age,
+      email,
+      faceDescriptors: [faceDescriptor],
+    });
 
-    res.status(201).json({ message: "Signup successful!" });
+    res.status(201).json({ message: 'Signup successful' });
   } catch (err) {
-    console.error("Signup error:", err);
-    res.status(500).json({ message: "Signup failed" });
+    console.error(err.message);
+    res.status(500).json({ message: 'Signup failed' });
   }
 });
 
-// -----------------------
-// LOGIN
-// -----------------------
-app.post("/login", async (req, res) => {
+/* =======================
+   🔹 LOGIN
+======================= */
+app.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, image } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: "Invalid credentials!" });
+      return res.status(400).json({ message: 'User not found' });
     }
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(401).json({ message: "Invalid credentials!" });
-    }
+    const loginDescriptor = await getFaceDescriptor(image);
 
-    res.status(200).json({ message: "Login successful!" });
+    const labeled = new faceapi.LabeledFaceDescriptors(
+      user.email,
+      user.faceDescriptors.map((d) => new Float32Array(d))
+    );
+
+    const matcher = new faceapi.FaceMatcher(labeled, 0.4);
+    const match = matcher.findBestMatch(
+      new Float32Array(loginDescriptor)
+    );
+
+    if (match.label === user.email) {
+      res.json({ success: true, message: 'Login successful' });
+    } else {
+      res.status(400).json({ success: false, message: 'Face mismatch' });
+    }
   } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ message: "Login failed" });
+    console.error(err.message);
+    res.status(500).json({ message: 'Login failed' });
   }
 });
 
-// -----------------------
-// QUIZ + AI CHAT
-// -----------------------
-app.post("/generate-quiz", async (req, res) => {
-  try {
-    const { messages } = req.body;
+/* =======================
+   🔹 CART ROUTES
+======================= */
+app.use('/api/cart', cartRoutes);
 
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ error: "Messages array is required" });
-    }
-
-    const response = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant", // ✅ always instant
-      messages,
-      temperature: 0.7,
-      max_tokens: 1024,
-    });
-
-    res.json(response);
-  } catch (err) {
-    console.error("AI /generate-quiz error:", err);
-    res.status(500).json({ error: "AI generation failed" });
-  }
+/* =======================
+   🔹 START SERVER
+======================= */
+const PORT = process.env.PORT || 5002;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
-
-// -----------------------
-// PDF UPLOAD
-// -----------------------
-app.post("/api/upload", upload.single("pdf"), async (req, res) => {
-  try {
-    if (!req.file)
-      return res.status(400).json({ error: "No file uploaded" });
-
-    const newFile = new File({
-      filename: req.file.filename,
-      originalName: req.file.originalname,
-    });
-
-    await newFile.save();
-
-    res.json({ message: "Uploaded successfully", file: req.file.filename });
-  } catch (err) {
-    console.error("Upload error:", err);
-    res.status(500).json({ error: "Upload failed" });
-  }
-});
-
-// Serve uploaded files
-app.use("/uploads", express.static(uploadDir));
-
-// -----------------------
-// RAG QA FROM PDF
-// -----------------------
-app.post("/api/ask", async (req, res) => {
-  try {
-    const { question, filename } = req.body;
-
-    if (!question || !filename) {
-      return res.status(400).json({ error: "Question and filename required" });
-    }
-
-    const filePath = path.join(uploadDir, filename);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: "File not found" });
-    }
-
-    const dataBuffer = fs.readFileSync(filePath);
-    const pdfData = await pdfParse(dataBuffer);
-    const text = (pdfData.text || "").trim();
-
-    if (!text) {
-      return res.json({
-        answer:
-          "⚠️ This PDF does not contain readable text. It may be scanned or image-based.",
-      });
-    }
-
-    // 🔹 Split into small chunks
-    const chunks = text.match(/(.|\n){1,800}/g) || [];
-
-    // 🔹 Pick top 2 chunks only (VERY IMPORTANT)
-    const context = chunks.slice(0, 2).join("\n---\n");
-
-    const messages = [
-      {
-        role: "system",
-        content:
-          "Answer the question using ONLY the given PDF context. If the answer is not present, clearly say so.",
-      },
-      {
-        role: "user",
-        content: `Context:\n${context}\n\nQuestion: ${question}`,
-      },
-    ];
-
-   let response;
-try {
-  response = await groq.chat.completions.create({
-    model: "llama-3.1-8b-instant",
-    messages,
-    max_tokens: 300,
-    temperature: 0.4,
-  });
-} catch (groqErr) {
-  console.error("❌ GROQ ERROR:", groqErr);
-  return res.status(500).json({
-    error: "Groq API failed. Check API key / quota.",
-  });
-}
-
-res.json({
-  answer: response.choices[0].message.content,
-});
-
-
-    res.json({
-      answer: response.choices[0].message.content,
-    });
-  } catch (err) {
-    console.error("❌ /api/ask error:", err);
-    res.status(500).json({
-      error: "Failed to answer question from PDF",
-    });
-  }
-});
-
-// =======================
-// START SERVER
-// =======================
-app.listen(PORT, () =>
-  console.log(`🚀 Server running on port ${PORT}`)
-);
