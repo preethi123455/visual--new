@@ -23,31 +23,42 @@ app.use(express.json({ limit: "10mb" }));
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
+  "http://localhost:5002",
   "https://educonnect-platform-frontend.onrender.com",
   "https://visual-new-frontend.onrender.com",
   "https://visual-math-frontend.onrender.com",
+  "https://visual-math-oscg.onrender.com",
   "https://preethi123455.github.io",
 ];
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Allow all for debugging, restrict in production
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  credentials: true,
-  maxAge: 86400, // 24 hours
-};
-
-app.use(cors(corsOptions));
+// Simple CORS for production - allow all origins
+app.use(
+  cors({
+    origin: true, // Allow all origins
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    credentials: true,
+    optionsSuccessStatus: 200,
+  }),
+);
 
 // ✅ REQUIRED for preflight requests
-app.options("*", cors(corsOptions));
+app.options("*", cors());
+
+// ✅ Additional CORS headers for safety
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With",
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
 
 /* =======================
    🔹 MONGODB CONNECTION
