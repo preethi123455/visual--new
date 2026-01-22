@@ -13,52 +13,38 @@ faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
 const app = express();
 
 /* =======================
-   🔹 BODY PARSER
+   🔹 CORS - FIRST MIDDLEWARE (BEFORE ANYTHING ELSE)
 ======================= */
-app.use(express.json({ limit: "10mb" }));
-
-/* =======================
-   🔹 CORS (PRODUCTION READY)
-======================= */
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:5002",
-  "https://educonnect-platform-frontend.onrender.com",
-  "https://visual-new-frontend.onrender.com",
-  "https://visual-math-frontend.onrender.com",
-  "https://visual-math-oscg.onrender.com",
-  "https://preethi123455.github.io",
-];
-
-// Simple CORS for production - allow all origins
-app.use(
-  cors({
-    origin: true, // Allow all origins
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-    credentials: true,
-    optionsSuccessStatus: 200,
-  }),
-);
-
-// ✅ REQUIRED for preflight requests
-app.options("*", cors());
-
-// ✅ Additional CORS headers for safety
+// Handle preflight requests FIRST
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-  );
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE");
   res.header(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, X-Requested-With",
   );
-  res.header("Access-Control-Allow-Credentials", "true");
+
+  // Handle preflight
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
   next();
 });
+
+// BODY PARSER AFTER CORS
+app.use(express.json({ limit: "10mb" }));
+
+// Apply CORS middleware as backup
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    credentials: false,
+    optionsSuccessStatus: 200,
+  }),
+);
 
 /* =======================
    🔹 MONGODB CONNECTION
@@ -126,6 +112,17 @@ async function getFaceDescriptor(imageBase64) {
 /* =======================
    🔹 SIGNUP ROUTE
 ======================= */
+// Explicit OPTIONS handler for signup
+app.options("/signup", (req, res) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With",
+  );
+  res.sendStatus(200);
+});
+
 app.post("/signup", async (req, res) => {
   try {
     const { name, age, email, image } = req.body;
@@ -159,6 +156,17 @@ app.post("/signup", async (req, res) => {
 /* =======================
    🔹 LOGIN ROUTE
 ======================= */
+// Explicit OPTIONS handler for login
+app.options("/login", (req, res) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With",
+  );
+  res.sendStatus(200);
+});
+
 app.post("/login", async (req, res) => {
   try {
     const { email, image } = req.body;
