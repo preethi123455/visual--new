@@ -14,6 +14,10 @@ body {
   min-height: 100vh;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* ===== Page Centering ===== */
 .login-container,
 .signup-container {
@@ -22,44 +26,53 @@ body {
   align-items: center;
   justify-content: center;
   padding: 40px;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,0.35), transparent 40%),
+    radial-gradient(circle at bottom right, rgba(255,255,255,0.25), transparent 45%),
+    linear-gradient(135deg, #cfc1e8, #b9a8e3);
 }
 
 /* ===== Card ===== */
 .login-card,
 .signup-card {
   background: rgba(255, 255, 255, 0.95);
-  width: 520px;                 /* BIGGER CARD */
+  width: 520px;                 
   max-width: 95%;
-  padding: 36px;
+  padding: 40px;
   border-radius: 20px;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.18);
   text-align: center;
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(10px);
   animation: fadeUp 0.7s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .login-card h2,
 .signup-card h2 {
-  margin-bottom: 22px;
-  font-size: 28px;
+  margin-top: 0;
+  margin-bottom: 24px;
+  font-size: 32px;
+  font-weight: 700;
   color: #4c1d95;
+  letter-spacing: -0.5px;
 }
 
 /* ===== Webcam Area (IMPORTANT PART) ===== */
 .webcam-box {
   width: 100%;
-  height: 360px;                /* 👈 BIG FACE WINDOW */
+  height: 360px;                
   border-radius: 16px;
   overflow: hidden;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   border: 4px solid #a78bfa;
   background: #000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .webcam-box video {
   width: 100%;
   height: 100%;
-  object-fit: cover;            /* FULL FACE FIT */
+  object-fit: cover;            
   border-radius: 16px;
 }
 
@@ -67,80 +80,127 @@ body {
 .captured-img {
   margin-top: 12px;
   width: 140px;
+  height: 140px;
+  object-fit: cover;
   border-radius: 12px;
   border: 3px solid #8b5cf6;
+  box-shadow: 0 5px 15px rgba(139, 92, 246, 0.3);
+  animation: slideIn 0.4s ease;
 }
 
 /* ===== Inputs ===== */
 .login-card input,
 .signup-card input {
   width: 100%;
-  padding: 14px;
+  padding: 14px 16px;
   margin-top: 14px;
   border-radius: 10px;
-  border: 1.5px solid #d1d5db;
+  border: 2px solid #e5e7eb;
   font-size: 16px;
-  transition: 0.3s;
+  transition: all 0.3s ease;
+  background: #f9fafb;
+  font-family: inherit;
+}
+
+.login-card input::placeholder,
+.signup-card input::placeholder {
+  color: #9ca3af;
 }
 
 .login-card input:focus,
 .signup-card input:focus {
   border-color: #7c3aed;
   outline: none;
-  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.18);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15);
+  background: #fff;
 }
 
 /* ===== Main Button ===== */
 .login-btn,
 .signup-btn {
-  margin-top: 20px;
+  margin-top: 24px;
   width: 100%;
   padding: 14px;
-  background: linear-gradient(to right, #7c3aed, #5b21b6);
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
   color: white;
   border: none;
   border-radius: 12px;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: 0.3s;
+  transition: all 0.3s ease;
+  letter-spacing: 0.5px;
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.3);
 }
 
-.login-btn:hover,
-.signup-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 15px 30px rgba(124, 58, 237, 0.4);
+.login-btn:hover:not(:disabled),
+.signup-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(124, 58, 237, 0.4);
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+}
+
+.login-btn:active:not(:disabled),
+.signup-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-btn:disabled,
+.signup-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #a78bfa, #9370db);
 }
 
 /* ===== Messages ===== */
 .message {
-  margin-top: 14px;
+  margin-top: 18px;
   font-size: 15px;
   font-weight: 500;
+  min-height: 24px;
+  animation: slideIn 0.3s ease;
 }
 
 /* ===== Switch Links ===== */
 .signup-link,
 .login-link {
-  margin-top: 18px;
+  margin-top: 20px;
   background: none;
   border: none;
   color: #5b21b6;
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-block;
+  padding: 8px 0;
 }
 
 .signup-link:hover,
 .login-link:hover {
   color: #4c1d95;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 /* ===== Animation ===== */
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(35px);
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
@@ -153,10 +213,56 @@ body {
   .login-card,
   .signup-card {
     width: 100%;
-    padding: 24px;
+    padding: 28px 20px;
+    border-radius: 16px;
+  }
+
+  .login-card h2,
+  .signup-card h2 {
+    font-size: 26px;
+    margin-bottom: 20px;
   }
 
   .webcam-box {
-    height: 260px;  /* slightly smaller on mobile */
+    height: 280px;
+    margin-bottom: 16px;
+  }
+
+  .login-card input,
+  .signup-card input {
+    padding: 12px 14px;
+    font-size: 16px;
+    margin-top: 12px;
+  }
+
+  .login-btn,
+  .signup-btn {
+    padding: 12px;
+    margin-top: 18px;
+    font-size: 15px;
+  }
+
+  .captured-img {
+    width: 110px;
+    height: 110px;
   }
 }
+
+@media (max-width: 480px) {
+  .login-container,
+  .signup-container {
+    padding: 20px;
+  }
+
+  .login-card,
+  .signup-card {
+    padding: 24px 16px;
+  }
+
+  .login-card h2,
+  .signup-card h2 {
+    font-size: 22px;
+  }
+
+  .webcam-box {
+    height: 240px;

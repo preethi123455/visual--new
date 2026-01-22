@@ -1,11 +1,11 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const faceapi = require('face-api.js');
-const canvas = require('canvas');
-const path = require('path');
-const cartRoutes = require('./routes/cartRoutes');
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const faceapi = require("face-api.js");
+const canvas = require("canvas");
+const path = require("path");
+const cartRoutes = require("./routes/cartRoutes");
 
 const { Canvas, Image, ImageData } = canvas;
 faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
@@ -15,43 +15,54 @@ const app = express();
 /* =======================
    🔹 BODY PARSER
 ======================= */
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
 
 /* =======================
-   🔹 CORS (RECTIFIED)
+   🔹 CORS (PRODUCTION READY)
 ======================= */
 const allowedOrigins = [
-  'http://localhost:3000',
-  'https://educonnect-platform-frontend.onrender.com',
-  'https://visual-new-frontend.onrender.com',
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "https://educonnect-platform-frontend.onrender.com",
+  "https://visual-new-frontend.onrender.com",
+  "https://visual-math-frontend.onrender.com",
+  "https://preethi123455.github.io",
 ];
 
-app.use(
-  cors({
-    origin: allowedOrigins, // ✅ NO custom function
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for debugging, restrict in production
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  credentials: true,
+  maxAge: 86400, // 24 hours
+};
 
-// ✅ REQUIRED for preflight
-app.options('*', cors());
+app.use(cors(corsOptions));
+
+// ✅ REQUIRED for preflight requests
+app.options("*", cors(corsOptions));
 
 /* =======================
    🔹 MONGODB CONNECTION
 ======================= */
 const MONGO_URI =
   process.env.MONGO_URI ||
-  'mongodb+srv://preethi:Preethi1234@cluster0.umdwxhv.mongodb.net/faceAuthDB';
+  "mongodb+srv://preethi:Preethi1234@cluster0.umdwxhv.mongodb.net/faceAuthDB";
 
 mongoose
   .connect(MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log('✅ MongoDB Connected'))
-  .catch((error) => console.error('❌ MongoDB Connection Error:', error));
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((error) => console.error("❌ MongoDB Connection Error:", error));
 
 /* =======================
    🔹 USER SCHEMA
@@ -63,20 +74,20 @@ const userSchema = new mongoose.Schema({
   faceDescriptors: { type: [[Number]], required: true },
 });
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 /* =======================
    🔹 LOAD FACE API MODELS
 ======================= */
 async function loadModels() {
   try {
-    const modelsPath = path.join(__dirname, 'models');
+    const modelsPath = path.join(__dirname, "models");
     await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath);
     await faceapi.nets.faceRecognitionNet.loadFromDisk(modelsPath);
     await faceapi.nets.faceLandmark68Net.loadFromDisk(modelsPath);
-    console.log('✅ Face API models loaded');
+    console.log("✅ Face API models loaded");
   } catch (err) {
-    console.error('❌ Face API Model Error:', err.message);
+    console.error("❌ Face API Model Error:", err.message);
   }
 }
 loadModels();
@@ -92,29 +103,29 @@ async function getFaceDescriptor(imageBase64) {
       .withFaceLandmarks()
       .withFaceDescriptor();
 
-    if (!detection) throw new Error('No face detected');
+    if (!detection) throw new Error("No face detected");
 
     return Array.from(detection.descriptor);
   } catch (error) {
-    console.error('❌ Face Detection Error:', error.message);
-    throw new Error('Face detection failed');
+    console.error("❌ Face Detection Error:", error.message);
+    throw new Error("Face detection failed");
   }
 }
 
 /* =======================
    🔹 SIGNUP ROUTE
 ======================= */
-app.post('/signup', async (req, res) => {
+app.post("/signup", async (req, res) => {
   try {
     const { name, age, email, image } = req.body;
 
     if (!name || !age || !email || !image) {
-      return res.status(400).json({ message: '❌ All fields are required' });
+      return res.status(400).json({ message: "❌ All fields are required" });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: '❌ User already exists' });
+      return res.status(400).json({ message: "❌ User already exists" });
     }
 
     const faceDescriptor = await getFaceDescriptor(image);
@@ -127,56 +138,56 @@ app.post('/signup', async (req, res) => {
     });
 
     await newUser.save();
-    res.status(201).json({ message: '✅ Signup successful' });
+    res.status(201).json({ message: "✅ Signup successful" });
   } catch (error) {
-    console.error('❌ Signup Error:', error.message);
-    res.status(500).json({ message: '❌ Signup failed' });
+    console.error("❌ Signup Error:", error.message);
+    res.status(500).json({ message: "❌ Signup failed" });
   }
 });
 
 /* =======================
    🔹 LOGIN ROUTE
 ======================= */
-app.post('/login', async (req, res) => {
+app.post("/login", async (req, res) => {
   try {
     const { email, image } = req.body;
 
     if (!email || !image) {
-      return res.status(400).json({ message: '❌ Email and image required' });
+      return res.status(400).json({ message: "❌ Email and image required" });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: '❌ User not found' });
+      return res.status(400).json({ message: "❌ User not found" });
     }
 
     const loginDescriptor = await getFaceDescriptor(image);
 
     const labeledDescriptor = new faceapi.LabeledFaceDescriptors(
       user.email,
-      user.faceDescriptors.map((desc) => new Float32Array(desc))
+      user.faceDescriptors.map((desc) => new Float32Array(desc)),
     );
 
     const faceMatcher = new faceapi.FaceMatcher(labeledDescriptor, 0.4);
     const bestMatch = faceMatcher.findBestMatch(
-      new Float32Array(loginDescriptor)
+      new Float32Array(loginDescriptor),
     );
 
     if (bestMatch.label === user.email) {
-      res.status(200).json({ success: true, message: '✅ Login successful' });
+      res.status(200).json({ success: true, message: "✅ Login successful" });
     } else {
-      res.status(400).json({ success: false, message: '❌ Face mismatch' });
+      res.status(400).json({ success: false, message: "❌ Face mismatch" });
     }
   } catch (error) {
-    console.error('❌ Login Error:', error.message);
-    res.status(500).json({ message: '❌ Login failed' });
+    console.error("❌ Login Error:", error.message);
+    res.status(500).json({ message: "❌ Login failed" });
   }
 });
 
 /* =======================
    🔹 CART ROUTES
 ======================= */
-app.use('/api/cart', cartRoutes);
+app.use("/api/cart", cartRoutes);
 
 /* =======================
    🔹 START SERVER

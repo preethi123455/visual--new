@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import Webcam from "react-webcam";
 import axios from "axios";
+import "./Signup.css";
 
 const Signup = () => {
   const webcamRef = useRef(null);
@@ -9,6 +10,7 @@ const Signup = () => {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [capturedImage, setCapturedImage] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const captureAndSignup = async () => {
     if (!name || !age || !email) {
@@ -23,18 +25,28 @@ const Signup = () => {
     }
 
     setCapturedImage(imageSrc);
+    setLoading(true);
 
     try {
-      const res = await axios.post("https://visual-math-oscg.onrender.com/signup", {
-        name,
-        age,
-        email,
-        image: imageSrc,
-      });
+      const apiUrl =
+        process.env.REACT_APP_API_URL ||
+        "https://visual-math-oscg.onrender.com";
+      const res = await axios.post(
+        `${apiUrl}/signup`,
+        {
+          name,
+          age,
+          email,
+          image: imageSrc,
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
 
       setMessage(res.data.message);
 
-      if (res.data.message.includes("Signup successful")) {
+      if (res.data.message.includes("successful")) {
         setTimeout(() => {
           window.location.href = "/login";
         }, 2000);
@@ -42,25 +54,67 @@ const Signup = () => {
     } catch (error) {
       console.error("Signup Error:", error);
       setMessage("❌ Signup failed. Try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
-      <h2>Signup</h2>
-      <Webcam ref={webcamRef} screenshotFormat="image/jpeg" />
-      {capturedImage && <img src={capturedImage} alt="Captured face" width={100} />}
+    <div className="signup-container">
+      <div className="signup-card">
+        <h2>Create Account</h2>
 
-      <input type="text" placeholder="Enter Name" onChange={(e) => setName(e.target.value)} required />
-      <input type="number" placeholder="Enter Age" onChange={(e) => setAge(e.target.value)} required />
-      <input type="email" placeholder="Enter Email" onChange={(e) => setEmail(e.target.value)} required />
+        <div className="webcam-box">
+          <Webcam ref={webcamRef} screenshotFormat="image/jpeg" />
+        </div>
 
-      <button onClick={captureAndSignup}>Signup</button>
+        {capturedImage && (
+          <img
+            src={capturedImage}
+            alt="Captured face"
+            className="captured-img"
+          />
+        )}
 
-      <p>{message}</p>
-      <button onClick={() => window.location.href = "/login"}>
-  Go to Login
-</button>
+        <input
+          type="text"
+          placeholder="Enter Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+        <input
+          type="number"
+          placeholder="Enter Age"
+          value={age}
+          onChange={(e) => setAge(e.target.value)}
+          required
+        />
+        <input
+          type="email"
+          placeholder="Enter Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+
+        <button
+          className="signup-btn"
+          onClick={captureAndSignup}
+          disabled={loading}
+        >
+          {loading ? "Processing..." : "Signup with Face"}
+        </button>
+
+        <p className="message">{message}</p>
+
+        <button
+          className="login-link"
+          onClick={() => (window.location.href = "/login")}
+        >
+          Already have an account? Go to Login
+        </button>
+      </div>
     </div>
   );
 };
