@@ -22,21 +22,28 @@ app.use(express.json({ limit: '10mb' }));
 ======================= */
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://educonnect-platform-frontend.onrender.com',
   'https://visual-new-frontend.onrender.com',
+  'https://educonnect-platform-frontend.onrender.com',
 ];
 
-app.use(
-  cors({
-    origin: allowedOrigins, // ✅ NO custom function
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  })
-);
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
 
-// ✅ REQUIRED for preflight
-app.options('*', cors());
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
 
 /* =======================
    🔹 MONGODB CONNECTION

@@ -32,7 +32,12 @@ const Signup = () => {
         age,
         email,
         image: imageSrc,
-      });
+      },
+     {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 
       setMessage(res.data.message);
 

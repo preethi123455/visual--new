@@ -28,7 +28,13 @@ const Login = () => {
       const res = await axios.post("https://visual-math-oscg.onrender.com/login", {
         email,
         image: imageSrc,
-      });
+      },
+      {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  }
+    );
   
       if (res.data.success) {
         localStorage.setItem("userEmail", email); // Store email in localStorage
